@@ -60,7 +60,27 @@ uv run src/main.py --mode auto --ai expectimax
 uv run src/main.py --mode evaluate --ai mcts --games 50
 ```
 
+## 🏋️ Aerobic Gesture Controls (Computer Vision)
+Turn 2048 into a workout by controlling the game with your hands! This uses your webcam to track your hand positions.
+
+To run with CV enabled:
+```bash
+# Enable camera controls in manual mode
+uv run src/main.py --mode manual --cv
+```
+
+### How to Play:
+- **REACH UP**: Raise your hand high to move the tiles UP.
+- **REACH DOWN**: Lower your hand to move tiles DOWN.
+- **REACH LEFT/RIGHT**: Move your hand to the sides to slide tiles.
+- *Note: The center of the camera is a "deadzone" where no moves are triggered.*
+
 ## 🧪 Customization & Exercises
+...
+### 5. Explore Computer Vision
+Read `docs/CV_GUIDE.md` to understand how the camera tracks your hands.
+- **Challenge**: Make the "Deadzone" smaller or larger in `src/cv_controller.py`.
+- **Hint**: Change the `deadzone` parameter in the `GestureController` constructor.
 ...
 ### 4. Improve the Heuristics
 Open `src/heuristics.py`.

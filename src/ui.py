@@ -59,7 +59,9 @@ class Renderer:
             rect = msg.get_rect(center=(offset_x + board_size / 2, offset_y + board_size / 2))
             screen.blit(msg, rect)
 
-def run_manual():
+from cv_controller import GestureController
+
+def run_manual(use_cv=False):
     pygame.init()
     game = Game2048()
     renderer = Renderer()
@@ -68,23 +70,37 @@ def run_manual():
     pygame.display.set_caption("2048 Manual Mode")
     clock = pygame.time.Clock()
 
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP: game.move('UP')
-                if event.key == pygame.K_DOWN: game.move('DOWN')
-                if event.key == pygame.K_LEFT: game.move('LEFT')
-                if event.key == pygame.K_RIGHT: game.move('RIGHT')
-                if event.key == pygame.K_r: game.reset()
-                if event.key == pygame.K_ESCAPE: return
+    cv_ctrl = None
+    if use_cv:
+        cv_ctrl = GestureController()
+        cv_ctrl.start()
 
-        screen.fill((250, 248, 239))
-        renderer.draw_board(screen, game, 20, 20, "Manual")
-        pygame.display.flip()
-        clock.tick(60)
+    try:
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP: game.move('UP')
+                    if event.key == pygame.K_DOWN: game.move('DOWN')
+                    if event.key == pygame.K_LEFT: game.move('LEFT')
+                    if event.key == pygame.K_RIGHT: game.move('RIGHT')
+                    if event.key == pygame.K_r: game.reset()
+                    if event.key == pygame.K_ESCAPE: return
+
+            if cv_ctrl:
+                move = cv_ctrl.get_move()
+                if move:
+                    game.move(move)
+
+            screen.fill((250, 248, 239))
+            renderer.draw_board(screen, game, 20, 20, "Manual")
+            pygame.display.flip()
+            clock.tick(60)
+    finally:
+        if cv_ctrl:
+            cv_ctrl.stop()
+        pygame.quit()
 
 def run_auto(strategies):
     if len(strategies) < 2:

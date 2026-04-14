@@ -20,6 +20,7 @@ def progress_bar(current, total, prefix="Simulating", size=30):
         parser.add_argument("--ai", choices=["expectimax", "mcts", "priority"], default="priority", help="AI strategy to use for auto/evaluate")
         parser.add_argument("--games", type=int, default=100, help="Number of games for evaluation")
         parser.add_argument("--count", type=int, default=5, help="Number of random strategies to generate")
+        parser.add_argument("--cv", action="store_true", help="Enable camera-based gesture controls (manual mode only)")
         args = parser.parse_args()
 
         # Resolve paths
@@ -35,7 +36,8 @@ def progress_bar(current, total, prefix="Simulating", size=30):
                 return load_strategies(strat_dir)
 
         if args.mode == "manual":
-            run_manual()
+            run_manual(use_cv=args.cv)
+
         elif args.mode == "auto":
             strategies = get_ai_strategies(args.ai)
             if not strategies:
