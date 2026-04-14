@@ -1,0 +1,5 @@
+# Random Strategy 10
+
+A randomly generated move-priority heuristic for 2048.
+
+Priority: LEFT, DOWN, UP, RIGHT
