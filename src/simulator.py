@@ -19,13 +19,10 @@ class Simulator:
             game = Game2048()
             moves_count = 0
             while not game.game_over and moves_count < self.max_moves:
-                moved = False
-                for move in self.strategy.priority_list:
-                    if game.move(move):
-                        moved = True
-                        moves_count += 1
-                        break
-                if not moved:
+                move = self.strategy.get_move(game)
+                if move and game.move(move):
+                    moves_count += 1
+                else:
                     break
             
             scores.append(game.score)

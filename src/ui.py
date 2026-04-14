@@ -137,12 +137,11 @@ def run_auto(strategies):
         now = pygame.time.get_ticks()
         if now - last_move > move_delay:
             if not game1.game_over:
-                # The strategy only gives a preference, we must try until one works
-                for m in s1.priority_list:
-                    if game1.move(m): break
+                move = s1.get_move(game1)
+                if move: game1.move(move)
             if not game2.game_over:
-                for m in s2.priority_list:
-                    if game2.move(m): break
+                move = s2.get_move(game2)
+                if move: game2.move(move)
             last_move = now
 
         screen.fill((250, 248, 239))
