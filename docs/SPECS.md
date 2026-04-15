@@ -1,32 +1,38 @@
 # Game Specifications: 2048 Strategy Comparison
 
 ## Game Mechanics
-- **Grid**: 4x4 squares.
-- **Initial State**: Two tiles (2 or 4) spawned at random locations.
-- **Movement**:
-  - Tiles slide in the chosen direction (UP, DOWN, LEFT, RIGHT).
-  - Identical adjacent tiles merge into their sum.
-  - A new tile (2 or 4) spawns after every successful move.
-- **Goal**: Achieve the 2048 tile (or highest possible score).
-- **Game Over**: No empty tiles and no possible merges.
+- **Grid**: 4x4.
+- **Goal**: Reach 2048 (or highest score).
+- **Movement**: Slide & merge identical adjacent tiles.
+- **Spawning**: Random 2 (90%) or 4 (10%) spawned after each move.
 
-## User Interface
-- **Manual Mode**:
-  - Single board display.
-  - Controlled by Arrow keys or WASD.
-- **Auto Mode (Comparison)**:
-  - Two boards side-by-side.
-  - Each board is controlled by a distinct "Strategy" loaded from a `.md` file.
-  - Real-time score and high-tile tracking for both.
-  - Adjustable simulation speed.
+## Modes of Operation
+1.  **Manual Mode (`--mode manual`)**: Arrow keys or WASD.
+2.  **Manual CV Mode (`--mode manual --cv`)**: Aerobic gesture controls via webcam.
+3.  **Auto Mode (`--mode auto`)**: 1v1 split-screen real-time comparison.
+4.  **Evaluate Mode (`--mode evaluate`)**: Headless batch simulation with statistical output.
+5.  **Generate Mode (`--mode generate`)**: Automated creation of random heuristic `.md` files.
 
-## Strategy Definition (`strategies/*.md`)
-- **Format**:
-  - A header or metadata section.
-  - A field: `Priority: [DIR1], [DIR2], [DIR3], [DIR4]` (e.g., `Priority: DOWN, RIGHT, LEFT, UP`).
-- **Logic**: The auto-bot will attempt to move in the first priority direction. If that move is invalid (no tiles move), it will attempt the next priority direction.
+## AI Engines
+- **Priority Heuristic**: Tries directions in a fixed sequence from a `.md` file.
+- **Expectimax Search**: Recursive tree search maximizing expected board value.
+- **MCTS**: Monte Carlo Tree Search using random "rollouts" to calculate survival.
 
-## Technical Requirements
-- Python 3.x
-- `pygame` for rendering and input handling.
-- `uv` for dependency management.
+## Heuristics (Board Evaluation)
+Boards are scored based on:
+- **Monotonicity**: Keeping tiles sorted in a direction.
+- **Smoothness**: Minimizing differences between neighbors.
+- **Empty Space**: Maintaining maneuverability.
+- **Max Tile Positioning**: Keeping the largest tile in a corner.
+
+## CV Gesture Controls
+- **Up/Down/Left/Right**: Triggered by reaching outside a **Deadzone (0.25)** in the camera view.
+- **Throttling**: 0.4s between gesture-based moves.
+- **Tooling**: OpenCV + MediaPipe Tasks API.
+
+## Technical Stack
+- **Language**: Python 3.x
+- **UI/Input**: Pygame
+- **CV Engine**: MediaPipe Tasks API, OpenCV
+- **Dependency Management**: `uv`
+- **Logic Matrix Handling**: NumPy
