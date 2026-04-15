@@ -141,7 +141,7 @@ class MCTSStrategy(Strategy):
             if not moved:
                 break
         return game.score
-Applied fuzzy match at line 133-146.
+
 import itertools
 import random
 
