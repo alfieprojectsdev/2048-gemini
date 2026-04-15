@@ -39,27 +39,36 @@ class Game2048:
         return False
 
     def move(self, direction):
-        """Moves in direction ('UP', 'DOWN', 'LEFT', 'RIGHT'). Returns True if move was valid."""
-        if self.game_over:
-            return False
-
+        """Standard move with change detection and spawning."""
+        if self.game_over: return False
         original_grid = [row[:] for row in self.grid]
-
-        if direction == 'UP':
-            self._move_up()
-        elif direction == 'DOWN':
-            self._move_down()
-        elif direction == 'LEFT':
-            self._move_left()
-        elif direction == 'RIGHT':
-            self._move_right()
+        
+        if direction == 'UP': self._move_up()
+        elif direction == 'DOWN': self._move_down()
+        elif direction == 'LEFT': self._move_left()
+        elif direction == 'RIGHT': self._move_right()
 
         if self.grid != original_grid:
             self.spawn_tile()
-            if not self.can_move():
-                self.game_over = True
+            if not self.can_move(): self.game_over = True
             return True
         return False
+
+    def move_fast(self, direction):
+        """Optimized move for AI rollouts. Returns True if board changed, no deep-copy."""
+        # Use our existing test_move to see if it's worth actually moving
+        if not self.test_move(direction):
+            return False
+            
+        if direction == 'UP': self._move_up()
+        elif direction == 'DOWN': self._move_down()
+        elif direction == 'LEFT': self._move_left()
+        elif direction == 'RIGHT': self._move_right()
+        
+        self.spawn_tile()
+        # We don't check game_over here to save time; 
+        # the rollout loop will detect it via test_move returning False for all dirs
+        return True
 
     def _slide_and_merge(self, row):
         """Slides and merges a single row (to the left)."""
@@ -114,21 +123,65 @@ class Game2048:
         return new_game
 
     def get_available_moves(self):
-        """Returns a list of directions that would change the board."""
+        """Returns a list of directions that would change the board without full cloning."""
         moves = []
-        original_grid = [row[:] for row in self.grid]
         for direction in ['UP', 'DOWN', 'LEFT', 'RIGHT']:
-            # We use a temporary clone to see if a move is valid
-            # Alternatively, we could implement a check_move logic
-            # but reusing the existing move() logic is simpler.
-            temp_game = Game2048(self.size)
-            temp_game.grid = [row[:] for row in original_grid]
-            # Temporarily disable spawning a tile in the copy
-            # Actually, our move() logic only spawns if grid changed.
-            # But we want to check if a move is POSSIBLE.
-            if temp_game.move_no_spawn(direction):
+            if self.test_move(direction):
                 moves.append(direction)
         return moves
+
+    def test_move(self, direction):
+        """Checks if a move is possible without modifying the board."""
+        if direction == 'LEFT':
+            for r in range(self.size):
+                row = self.grid[r]
+                # Can move if there's a zero before a non-zero, or two adjacent identical non-zeros
+                last_val = -1
+                has_zero = False
+                for val in row:
+                    if val == 0:
+                        has_zero = True
+                    else:
+                        if has_zero or val == last_val:
+                            return True
+                        last_val = val
+        elif direction == 'RIGHT':
+            for r in range(self.size):
+                row = self.grid[r][::-1]
+                last_val = -1
+                has_zero = False
+                for val in row:
+                    if val == 0:
+                        has_zero = True
+                    else:
+                        if has_zero or val == last_val:
+                            return True
+                        last_val = val
+        elif direction == 'UP':
+            for c in range(self.size):
+                col = [self.grid[r][c] for r in range(self.size)]
+                last_val = -1
+                has_zero = False
+                for val in col:
+                    if val == 0:
+                        has_zero = True
+                    else:
+                        if has_zero or val == last_val:
+                            return True
+                        last_val = val
+        elif direction == 'DOWN':
+            for c in range(self.size):
+                col = [self.grid[r][c] for r in range(self.size)][::-1]
+                last_val = -1
+                has_zero = False
+                for val in col:
+                    if val == 0:
+                        has_zero = True
+                    else:
+                        if has_zero or val == last_val:
+                            return True
+                        last_val = val
+        return False
 
     def move_no_spawn(self, direction):
         """Moves in direction without spawning a new tile. Returns True if board changed."""

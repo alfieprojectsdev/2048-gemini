@@ -128,14 +128,20 @@ class MCTSStrategy(Strategy):
         return max(scores, key=scores.get)
 
     def random_rollout(self, game):
-        """Play randomly until game ends, return final score."""
-        while not game.game_over:
-            moves = game.get_available_moves()
-            if not moves:
+        """Play randomly until game ends, return final score. Faster implementation."""
+        directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+        while True:
+            # We use test_move logic inside move_fast to avoid unnecessary work
+            random.shuffle(directions)
+            moved = False
+            for move in directions:
+                if game.move_fast(move):
+                    moved = True
+                    break
+            if not moved:
                 break
-            game.move(random.choice(moves))
         return game.score
-
+Applied fuzzy match at line 133-146.
 import itertools
 import random
 
