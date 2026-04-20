@@ -1,5 +1,8 @@
 import os
 import re
+import itertools
+import random
+from heuristics import evaluate_board
 
 class Strategy:
     def __init__(self, name):
@@ -16,10 +19,8 @@ class PriorityStrategy(Strategy):
     def get_move(self, game):
         # Simply try directions in priority order until one works
         for move in self.priority_list:
-            # We don't actually move here, we just check if it WOULD move
-            # But since our engine's move() returns True/False, we can just return the move
-            # and the Game runner will apply it.
-            return move
+            if game.test_move(move):
+                return move
         return None
 
 class MarkdownStrategy(PriorityStrategy):
@@ -37,9 +38,6 @@ class MarkdownStrategy(PriorityStrategy):
             return cls(name, priority_list)
         else:
             raise ValueError(f"No Priority field found in {filepath}")
-
-from heuristics import evaluate_board
-import numpy as np
 
 class ExpectimaxStrategy(Strategy):
     def __init__(self, name="Expectimax", depth=3):
@@ -141,9 +139,6 @@ class MCTSStrategy(Strategy):
             if not moved:
                 break
         return game.score
-
-import itertools
-import random
 
 def generate_random_strategies(directory, count=5):
     """Generates random permutations of priority rules and saves them to .md files."""

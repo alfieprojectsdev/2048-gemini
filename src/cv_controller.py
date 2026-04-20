@@ -6,6 +6,7 @@ import threading
 import time
 import os
 import requests
+import queue
 
 class GestureController:
     """
@@ -26,11 +27,13 @@ class GestureController:
         self.detector = vision.HandLandmarker.create_from_options(options)
         
         self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
         self.deadzone = deadzone
         self.throttle = throttle
         self.last_move_time = 0
-        self.latest_move = None
-        self.running = False
+        self.move_queue = queue.Queue(maxsize=2)
+        self.stop_event = threading.Event()
         self.thread = None
         
         self.current_pos = (0.5, 0.5)
@@ -41,28 +44,37 @@ class GestureController:
         if not os.path.exists(self.model_path):
             print(f"Downloading MediaPipe model to {self.model_path}...")
             url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
-            response = requests.get(url)
-            with open(self.model_path, "wb") as f:
-                f.write(response.content)
+            try:
+                response = requests.get(url, timeout=10)
+                response.raise_for_status()
+                with open(self.model_path, "wb") as f:
+                    f.write(response.content)
+            except Exception as e:
+                if os.path.exists(self.model_path):
+                    os.remove(self.model_path)
+                print(f"FAILED to download MediaPipe model: {e}")
+                print("Please download it manually and place it in the project root.")
+                raise
 
     def start(self):
-        self.running = True
+        self.stop_event.clear()
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
 
     def stop(self):
-        self.running = False
+        self.stop_event.set()
         if self.thread:
-            self.thread.join()
+            self.thread.join(timeout=1.0)
         if hasattr(self, 'detector'):
             self.detector.close()
         self.cap.release()
         cv2.destroyAllWindows()
 
     def _run_loop(self):
-        while self.running:
+        while not self.stop_event.is_set():
             success, frame = self.cap.read()
             if not success:
+                time.sleep(0.01)
                 continue
 
             frame = cv2.flip(frame, 1)
@@ -93,7 +105,10 @@ class GestureController:
                         elif dy > self.deadzone: move_triggered = "DOWN"
                     
                     if move_triggered:
-                        self.latest_move = move_triggered
+                        try:
+                            self.move_queue.put_nowait(move_triggered)
+                        except queue.Full:
+                            pass
                         self.last_move_time = now
             else:
                 self.is_hand_present = False
@@ -121,6 +136,7 @@ class GestureController:
         cv2.putText(image, "RIGHT", (w - 80, int(h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
     def get_move(self):
-        move = self.latest_move
-        self.latest_move = None
-        return move
+        try:
+            return self.move_queue.get_nowait()
+        except queue.Empty:
+            return None

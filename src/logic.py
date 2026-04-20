@@ -190,7 +190,10 @@ class Game2048:
         elif direction == 'DOWN': self._move_down()
         elif direction == 'LEFT': self._move_left()
         elif direction == 'RIGHT': self._move_right()
-        return self.grid != original_grid
+        changed = self.grid != original_grid
+        if changed and not self.can_move():
+            self.game_over = True
+        return changed
 
     def get_max_tile(self):
         return max(max(row) for row in self.grid)
