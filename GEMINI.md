@@ -53,6 +53,7 @@ python3 -m unittest discover tests
 - Use `unittest` for core logic verification.
 - Add new tests in `tests/` for any changes to `src/logic.py`.
 - For AI/Simulation changes, use `--mode evaluate` to verify statistical performance hasn't regressed.
+- **Indentation Verification**: After any surgical edit to a Python file, you MUST read back the affected lines to verify indentation and structural integrity before proceeding.
 
 ### Documentation
 - Architectural decisions are recorded in `docs/ADR.md`.
