@@ -16,7 +16,7 @@
 ## AI Engines
 - **Priority Heuristic**: Tries directions in a fixed sequence from a `.md` file.
 - **Expectimax Search**: Recursive tree search maximizing expected board value.
-- **MCTS**: Monte Carlo Tree Search using random "rollouts" to calculate survival.
+- **Monte Carlo**: Flat Monte Carlo rollouts — each candidate move is simulated N times with random play to completion; the move with the highest average score wins. (This is not full MCTS, which requires UCT-based node selection and backpropagation through a tree.)
 
 ## Heuristics (Board Evaluation)
 Boards are scored based on:

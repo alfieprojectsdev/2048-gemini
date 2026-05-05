@@ -1,15 +1,26 @@
+from __future__ import annotations
 import time
 import statistics
+from typing import Callable, TYPE_CHECKING
+
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from logic import Game2048
 
+if TYPE_CHECKING:
+    from strategies import Strategy
+
+
 class Simulator:
-    def __init__(self, strategy, num_games=100, max_moves=10000):
+    def __init__(self, strategy: Strategy, num_games: int = 100, max_moves: int = 10000) -> None:
         self.strategy = strategy
         self.num_games = num_games
         self.max_moves = max_moves
-        self.results = []
+        self.results: list = []
 
-    def run(self, progress_callback=None):
+    def run(self, progress_callback: Callable[[int, int], None] | None = None) -> dict:
         """Runs batch simulations and returns statistics."""
         scores = []
         max_tiles = []
@@ -24,10 +35,10 @@ class Simulator:
                     moves_count += 1
                 else:
                     break
-            
+
             scores.append(game.score)
             max_tiles.append(game.get_max_tile())
-            
+
             if progress_callback:
                 progress_callback(i + 1, self.num_games)
 

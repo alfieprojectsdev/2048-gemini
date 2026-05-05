@@ -17,11 +17,12 @@
 **Context**: Demonstrating "optimal" play.  
 **Decision**: Real-time concurrent side-by-side boards.
 
-## ADR 4: Advanced AI Search (Expectimax & MCTS)
+## ADR 4: Advanced AI Search (Expectimax & Monte Carlo Rollouts)
 **Status**: Accepted  
 **Context**: Moving beyond simple heuristics to optimal search.  
-**Decision**: Implement **Expectimax** (for random environments) and **MCTS** (for survival probability).  
-**Steelman**: Deep Reinforcement Learning (DQN) is "flashier" but algorithmic search is better for teaching state-space exploration and tree pruning.
+**Decision**: Implement **Expectimax** (for random environments) and **Monte Carlo rollouts** (for survival probability).  
+**Steelman**: Deep Reinforcement Learning (DQN) is "flashier" but algorithmic search is better for teaching state-space exploration and tree pruning.  
+**Note**: The Monte Carlo strategy uses flat random rollouts, not full MCTS (Monte Carlo Tree Search). Full MCTS would require UCT-based node selection and backpropagation through a tree. The simpler flat approach is intentional: it is easier for students to understand and extend, while still demonstrating the core idea of simulation-based evaluation.
 
 ## ADR 5: Headless Simulation & Progress Reporting
 **Status**: Accepted  

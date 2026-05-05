@@ -1,8 +1,11 @@
 import unittest
 import os
-import shutil
 import sys
 import subprocess
+
+# Add src to sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+
 
 class TestModes(unittest.TestCase):
     @classmethod
@@ -11,7 +14,7 @@ class TestModes(unittest.TestCase):
         cls.base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
         cls.strat_dir = os.path.join(cls.base_dir, 'strategies')
         cls.test_strat_dir = os.path.join(cls.base_dir, 'test_strategies')
-        
+
         if not os.path.exists(cls.test_strat_dir):
             os.makedirs(cls.test_strat_dir)
 
@@ -26,7 +29,7 @@ class TestModes(unittest.TestCase):
             # We use the default strat dir for the test
             result = self.run_main(['--mode', 'generate', '--count', '3'])
             self.assertEqual(result.returncode, 0)
-            
+
             # Check if files were created
             strats = [f for f in os.listdir(self.strat_dir) if f.startswith('random_strategy_')]
             self.assertGreaterEqual(len(strats), 3)
@@ -44,9 +47,44 @@ class TestModes(unittest.TestCase):
         self.assertIn("Expectimax", result.stdout)
 
     def test_evaluate_mode_mcts(self):
+        # CLI flag remains "--ai mcts" for backwards compatibility;
+        # the display name is now "Monte Carlo" (flat rollouts, not full MCTS).
         result = self.run_main(['--mode', 'evaluate', '--games', '1', '--ai', 'mcts'])
         self.assertEqual(result.returncode, 0)
-        self.assertIn("MCTS", result.stdout)
+        self.assertIn("Monte Carlo", result.stdout)
+
+
+class TestExpectimaxTT(unittest.TestCase):
+    """Verifies that the transposition table key includes depth and player flag,
+    preventing a shallow cached result from polluting deeper search."""
+
+    def test_tt_key_includes_depth(self):
+        from strategies import ExpectimaxStrategy
+        from logic import Game2048
+
+        strat = ExpectimaxStrategy(depth=3)
+        game = Game2048()
+        game.grid = [
+            [2,   0, 0, 0],
+            [0,   0, 0, 0],
+            [0,   0, 0, 0],
+            [0,   0, 0, 2048],
+        ]
+        game.game_over = False
+
+        # Evaluate the same board at depth=1 and depth=2 with fresh TT each time
+        strat.transposition_table = {}
+        val_d1 = strat.expectimax(game, 1, True)
+
+        strat.transposition_table = {}
+        val_d2 = strat.expectimax(game, 2, True)
+
+        self.assertNotEqual(
+            val_d1, val_d2,
+            "TT key bug: depth=1 and depth=2 returned identical values, "
+            "suggesting the cache is keyed on board state only."
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
