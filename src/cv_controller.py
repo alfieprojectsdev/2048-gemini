@@ -1,23 +1,34 @@
+from __future__ import annotations
 import cv2
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+import platform
 import threading
 import time
 import os
 import requests
 import queue
+from pathlib import Path
+
 
 class GestureController:
     """
     A controller that uses the camera to detect hand positions and translate
     them into game moves (UP, DOWN, LEFT, RIGHT).
     Uses the modern MediaPipe Tasks API.
+
+    Note: the CV preview window (cv2.imshow) is only shown on Linux and Windows.
+    On macOS, Cocoa requires GUI operations on the main thread, so the window is
+    suppressed — gesture detection still works normally.
     """
-    def __init__(self, deadzone=0.25, throttle=0.4):
-        self.model_path = 'hand_landmarker.task'
+
+    def __init__(self, deadzone: float = 0.25, throttle: float = 0.4) -> None:
+        # Always resolve the model path relative to the project root,
+        # not the current working directory.
+        self.model_path = str(Path(__file__).parent.parent / 'hand_landmarker.task')
         self._ensure_model_exists()
-        
+
         base_options = python.BaseOptions(model_asset_path=self.model_path)
         options = vision.HandLandmarkerOptions(
             base_options=base_options,
@@ -25,21 +36,21 @@ class GestureController:
             num_hands=1
         )
         self.detector = vision.HandLandmarker.create_from_options(options)
-        
+
         self.cap = cv2.VideoCapture(0)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
         self.deadzone = deadzone
         self.throttle = throttle
-        self.last_move_time = 0
-        self.move_queue = queue.Queue(maxsize=2)
+        self.last_move_time = 0.0
+        self.move_queue: queue.Queue[str] = queue.Queue(maxsize=2)
         self.stop_event = threading.Event()
-        self.thread = None
-        
+        self.thread: threading.Thread | None = None
+
         self.current_pos = (0.5, 0.5)
         self.is_hand_present = False
 
-    def _ensure_model_exists(self):
+    def _ensure_model_exists(self) -> None:
         """Downloads the MediaPipe hand landmarker model if missing."""
         if not os.path.exists(self.model_path):
             print(f"Downloading MediaPipe model to {self.model_path}...")
@@ -56,12 +67,12 @@ class GestureController:
                 print("Please download it manually and place it in the project root.")
                 raise
 
-    def start(self):
+    def start(self) -> None:
         self.stop_event.clear()
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=1.0)
@@ -70,7 +81,7 @@ class GestureController:
         self.cap.release()
         cv2.destroyAllWindows()
 
-    def _run_loop(self):
+    def _run_loop(self) -> None:
         while not self.stop_event.is_set():
             success, frame = self.cap.read()
             if not success:
@@ -80,7 +91,7 @@ class GestureController:
             frame = cv2.flip(frame, 1)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
             timestamp_ms = int(time.time() * 1000)
-            
+
             # Perform detection
             result = self.detector.detect_for_video(mp_image, timestamp_ms)
 
@@ -96,14 +107,14 @@ class GestureController:
                 if now - self.last_move_time > self.throttle:
                     dx = x - 0.5
                     dy = y - 0.5
-                    
+
                     if abs(dx) > abs(dy):
                         if dx < -self.deadzone: move_triggered = "LEFT"
                         elif dx > self.deadzone: move_triggered = "RIGHT"
                     else:
                         if dy < -self.deadzone: move_triggered = "UP"
                         elif dy > self.deadzone: move_triggered = "DOWN"
-                    
+
                     if move_triggered:
                         try:
                             self.move_queue.put_nowait(move_triggered)
@@ -114,17 +125,21 @@ class GestureController:
                 self.is_hand_present = False
 
             self._draw_overlay(frame)
-            cv2.imshow('2048 CV Control', frame)
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
 
-    def _draw_overlay(self, image):
+            # cv2.imshow must be called from the main thread on macOS (Cocoa restriction).
+            # Gesture detection still works; only the debug window is suppressed on macOS.
+            if platform.system() != 'Darwin':
+                cv2.imshow('2048 CV Control', frame)
+                if cv2.waitKey(1) & 0xFF == 27:
+                    break
+
+    def _draw_overlay(self, image) -> None:
         h, w, _ = image.shape
         # Draw deadzone box
         s_pt = (int((0.5 - self.deadzone) * w), int((0.5 - self.deadzone) * h))
         e_pt = (int((0.5 + self.deadzone) * w), int((0.5 + self.deadzone) * h))
         cv2.rectangle(image, s_pt, e_pt, (0, 255, 0), 2)
-        
+
         # Draw current position dot if hand present
         if self.is_hand_present:
             cx, cy = int(self.current_pos[0] * w), int(self.current_pos[1] * h)
@@ -135,7 +150,7 @@ class GestureController:
         cv2.putText(image, "LEFT", (10, int(h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
         cv2.putText(image, "RIGHT", (w - 80, int(h/2)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
-    def get_move(self):
+    def get_move(self) -> str | None:
         try:
             return self.move_queue.get_nowait()
         except queue.Empty:

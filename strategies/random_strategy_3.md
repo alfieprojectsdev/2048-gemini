@@ -2,4 +2,4 @@
 
 A randomly generated move-priority heuristic for 2048.
 
-Priority: DOWN, RIGHT, LEFT, UP
+Priority: LEFT, UP, RIGHT, DOWN

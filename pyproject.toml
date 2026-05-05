@@ -1,7 +1,7 @@
 [project]
 name = "2048-gemini"
 version = "0.1.0"
-description = "Add your description here"
+description = "A pedagogical 2048 game with Expectimax, Monte Carlo rollouts, headless simulation, and CV gesture controls."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,4 +10,12 @@ dependencies = [
     "opencv-python>=4.13.0.92",
     "pygame>=2.6.1",
     "requests>=2.33.1",
+]
+
+[project.scripts]
+2048-gemini = "main:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
 ]

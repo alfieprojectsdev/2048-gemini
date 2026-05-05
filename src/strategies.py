@@ -1,31 +1,44 @@
+from __future__ import annotations
 import os
 import re
+import sys
 import itertools
 import random
+from typing import TYPE_CHECKING
+
+# Ensure src/ is on the path regardless of working directory
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 from heuristics import evaluate_board
 
+if TYPE_CHECKING:
+    from logic import Game2048
+
+
 class Strategy:
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
         self.name = name
 
-    def get_move(self, game):
+    def get_move(self, game: Game2048) -> str | None:
         raise NotImplementedError
 
+
 class PriorityStrategy(Strategy):
-    def __init__(self, name, priority_list):
+    def __init__(self, name: str, priority_list: list[str]) -> None:
         super().__init__(name)
         self.priority_list = [p.strip().upper() for p in priority_list]
 
-    def get_move(self, game):
+    def get_move(self, game: Game2048) -> str | None:
         # Simply try directions in priority order until one works
         for move in self.priority_list:
             if game.test_move(move):
                 return move
         return None
 
+
 class MarkdownStrategy(PriorityStrategy):
     @classmethod
-    def from_file(cls, filepath):
+    def from_file(cls, filepath: str) -> MarkdownStrategy:
         name = os.path.basename(filepath).replace('.md', '').replace('_', ' ').title()
         with open(filepath, 'r') as f:
             content = f.read()
@@ -39,21 +52,22 @@ class MarkdownStrategy(PriorityStrategy):
         else:
             raise ValueError(f"No Priority field found in {filepath}")
 
+
 class ExpectimaxStrategy(Strategy):
-    def __init__(self, name="Expectimax", depth=3):
+    def __init__(self, name: str = "Expectimax", depth: int = 3) -> None:
         super().__init__(name)
         self.depth = depth
-        self.transposition_table = {}
+        self.transposition_table: dict = {}
 
-    def get_move(self, game):
+    def get_move(self, game: Game2048) -> str | None:
         self.transposition_table = {}
         best_score = -float('inf')
         best_move = None
-        
+
         available_moves = game.get_available_moves()
         if not available_moves:
             return None
-            
+
         for move in available_moves:
             temp_game = game.copy()
             temp_game.move_no_spawn(move)
@@ -63,11 +77,13 @@ class ExpectimaxStrategy(Strategy):
                 best_move = move
         return best_move
 
-    def expectimax(self, game, depth, is_player):
-        # Hash board for Transposition Table
+    def expectimax(self, game: Game2048, depth: int, is_player: bool) -> float:
+        # Hash board for Transposition Table — key includes depth and player flag
+        # to prevent a shallower result from being reused at a deeper search level.
         board_hash = hash(tuple(tuple(row) for row in game.grid))
-        if board_hash in self.transposition_table:
-            return self.transposition_table[board_hash]
+        tt_key = (board_hash, depth, is_player)
+        if tt_key in self.transposition_table:
+            return self.transposition_table[tt_key]
 
         if depth == 0 or game.game_over:
             return evaluate_board(game.grid)
@@ -83,38 +99,44 @@ class ExpectimaxStrategy(Strategy):
                 value = max(value, self.expectimax(temp_game, depth - 1, False))
         else:
             # Average results of random spawns
-            value = 0
+            value = 0.0
             empty_cells = [(r, c) for r in range(game.size) for c in range(game.size) if game.grid[r][c] == 0]
             if not empty_cells:
                 return evaluate_board(game.grid)
-            
-            # For efficiency in deep search, we might only check a few random spawns
-            # but for depth 3, checking all is fine.
+
             for r, c in empty_cells:
-                # 90% chance for 2
+                # 90% chance for 2, 10% chance for 4 — backtrack after each probe
                 game.grid[r][c] = 2
                 value += 0.9 * self.expectimax(game, depth - 1, True)
-                # 10% chance for 4
                 game.grid[r][c] = 4
                 value += 0.1 * self.expectimax(game, depth - 1, True)
-                # Backtrack
                 game.grid[r][c] = 0
             value = value / len(empty_cells)
 
-        self.transposition_table[board_hash] = value
+        self.transposition_table[tt_key] = value
         return value
 
-class MCTSStrategy(Strategy):
-    def __init__(self, name="MCTS", simulations=100):
+
+class MonteCarloStrategy(Strategy):
+    """
+    Flat Monte Carlo strategy: for each candidate move, runs `simulations`
+    random rollouts and returns the move with the highest average final score.
+
+    Note: despite the common misnomer, this is NOT MCTS (Monte Carlo Tree Search),
+    which requires UCT-based selection and backpropagation through a tree. This is
+    pure Monte Carlo rollout (a.k.a. flat Monte Carlo).
+    """
+
+    def __init__(self, name: str = "Monte Carlo", simulations: int = 100) -> None:
         super().__init__(name)
         self.simulations = simulations
 
-    def get_move(self, game):
+    def get_move(self, game: Game2048) -> str | None:
         available_moves = game.get_available_moves()
         if not available_moves:
             return None
-            
-        scores = {}
+
+        scores: dict[str, float] = {}
         for move in available_moves:
             scores[move] = 0
             for _ in range(self.simulations // len(available_moves)):
@@ -122,14 +144,13 @@ class MCTSStrategy(Strategy):
                 temp_game.move_no_spawn(move)
                 temp_game.spawn_tile()
                 scores[move] += self.random_rollout(temp_game)
-        
-        return max(scores, key=scores.get)
 
-    def random_rollout(self, game):
-        """Play randomly until game ends, return final score. Faster implementation."""
+        return max(scores, key=scores.get)  # type: ignore[arg-type]
+
+    def random_rollout(self, game: Game2048) -> int:
+        """Play randomly until game ends, return final score."""
         directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
         while True:
-            # We use test_move logic inside move_fast to avoid unnecessary work
             random.shuffle(directions)
             moved = False
             for move in directions:
@@ -140,11 +161,18 @@ class MCTSStrategy(Strategy):
                 break
         return game.score
 
-def generate_random_strategies(directory, count=5):
+
+def generate_random_strategies(directory: str, count: int = 5) -> list[MarkdownStrategy]:
     """Generates random permutations of priority rules and saves them to .md files."""
     directions = ["UP", "DOWN", "LEFT", "RIGHT"]
     all_permutations = list(itertools.permutations(directions))
-    selected = random.sample(all_permutations, min(count, len(all_permutations)))
+
+    if count > len(all_permutations):
+        print(f"Warning: only {len(all_permutations)} unique direction permutations exist; "
+              f"generating {len(all_permutations)} instead of {count}.")
+        count = len(all_permutations)
+
+    selected = random.sample(all_permutations, count)
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -154,19 +182,20 @@ def generate_random_strategies(directory, count=5):
         priority_str = ", ".join(p)
         filename = f"random_strategy_{i+1}.md"
         filepath = os.path.join(directory, filename)
-        
+
         content = f"# Random Strategy {i+1}\n\n"
         content += "A randomly generated move-priority heuristic for 2048.\n\n"
         content += f"Priority: {priority_str}\n"
-        
+
         with open(filepath, 'w') as f:
             f.write(content)
-        
+
         generated.append(MarkdownStrategy(f"Random Strategy {i+1}", list(p)))
-    
+
     return generated
 
-def load_strategies(directory):
+
+def load_strategies(directory: str) -> list[MarkdownStrategy]:
     strategies = []
     if not os.path.exists(directory):
         return []

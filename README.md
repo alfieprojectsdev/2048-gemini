@@ -5,7 +5,7 @@ A project designed to teach software engineering principles and heuristic design
 ## 🎓 Learning Objectives
 1.  **Engine/UI Separation**: See how the 2048 logic is entirely independent of the `pygame` interface.
 2.  **Heuristic Strategies**: Understand how different "priority rules" (heuristics) affect gameplay.
-3.  **Search Algorithms**: Explore advanced AI like **Expectimax** and **MCTS**.
+3.  **Search Algorithms**: Explore advanced AI like **Expectimax** and **Monte Carlo rollouts**.
 4.  **Computer Vision**: Learn how to map real-world movement (hand gestures) to digital controls.
 5.  **Steelman Design**: Observe documented tradeoffs between simple rules and complex search trees.
 
@@ -38,6 +38,7 @@ uv run src/main.py --mode manual --cv
 ```
 - **REACH UP/DOWN/LEFT/RIGHT**: Move your hand to the edges of the camera view.
 - *Note: A "Deadzone" box is shown in the center where no moves are triggered.*
+- *Note: CV preview window is shown on Linux/Windows only; gesture detection still works on macOS.*
 
 ### 4. Run Strategy Comparison (GUI)
 Compare two different heuristics side-by-side:
@@ -54,14 +55,14 @@ uv run src/main.py --mode evaluate --games 500 --ai priority
 ## 🤖 Advanced AI Strategies
 This project includes advanced search-based AI:
 - **Expectimax**: Recursive search with a Transposition Table and heuristics.
-- **MCTS**: Random rollouts to identify the most survivable moves.
+- **Monte Carlo**: Flat random rollouts to identify the most survivable moves. (The `--ai mcts` CLI flag activates this; note it is flat Monte Carlo, not full MCTS.)
 
 To run these:
 ```bash
-# Compare Expectimax against MCTS
+# Compare Expectimax at different depths
 uv run src/main.py --mode auto --ai expectimax
 
-# Evaluate MCTS performance
+# Evaluate Monte Carlo rollout performance
 uv run src/main.py --mode evaluate --ai mcts --games 50
 ```
 
